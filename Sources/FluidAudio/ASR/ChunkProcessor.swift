@@ -21,6 +21,10 @@ struct ChunkProcessor {
     private var rightContextSamples: Int { Int(rightContextSeconds * Double(sampleRate)) }
     private var maxModelSamples: Int { 240_000 }  // 15 seconds window capacity
 
+    // NEW: encoder frame math for absolute offsets
+    private let encoderFramesPerSecond: Double = 12.5         // 80 ms per frame at 16 kHz
+    private var frameHopSamples: Int { Int(Double(sampleRate) / encoderFramesPerSecond) }
+
     func process(
         using manager: AsrManager, decoderState: inout TdtDecoderState, startTime: Date
     ) async throws -> ASRResult {
@@ -34,9 +38,15 @@ struct ChunkProcessor {
             // Determine if this is the last chunk
             let isLastChunk = (centerStart + centerSamples) >= audioSamples.count
 
-            // Process chunk with explicit last chunk detection
+            // Compute the exact window left edge used for this chunk
+            let leftStart = max(0, centerStart - leftContextSamples)   // NEW: for absolute offset
 
+<<<<<<< Updated upstream
             let (windowTokens, windowTimestamps, windowConfidences, maxFrame) = try await processWindowWithTokens(
+=======
+            // Process chunk with explicit last chunk detection
+            let (windowTokens, windowTimestamps, maxFrame) = try await processWindowWithTokens(
+>>>>>>> Stashed changes
                 centerStart: centerStart,
                 segmentIndex: segmentIndex,
                 lastProcessedFrame: lastProcessedFrame,
@@ -50,9 +60,31 @@ struct ChunkProcessor {
                 lastProcessedFrame = maxFrame
             }
 
+<<<<<<< Updated upstream
             // Combine tokens, timestamps, and confidences into aligned tuples
             guard windowTokens.count == windowTimestamps.count && windowTokens.count == windowConfidences.count else {
                 throw ASRError.processingFailed("Token, timestamp, and confidence arrays are misaligned")
+=======
+            // NEW: compute absolute frame offset for this chunk (samples → encoder frames)
+            let offsetFrames = leftStart / frameHopSamples
+
+            // For chunks after the first, check for and remove duplicated token sequences
+            if segmentIndex > 0 && !allTokens.isEmpty && !windowTokens.isEmpty {
+                let (deduped, removedCount) = manager.removeDuplicateTokenSequence(
+                    previous: allTokens, current: windowTokens)
+                let adjustedTimestamps = Array(windowTimestamps.dropFirst(removedCount))
+
+                // NEW: apply absolute offset to chunk-local timestamps
+                let adjustedAbsolute = adjustedTimestamps.map { $0 + offsetFrames }
+
+                allTokens.append(contentsOf: deduped)
+                allTimestamps.append(contentsOf: adjustedAbsolute)
+            } else {
+                // First chunk (or nothing to dedupe): just add absolute offset
+                let absoluteTimestamps = windowTimestamps.map { $0 + offsetFrames } // NEW
+                allTokens.append(contentsOf: windowTokens)
+                allTimestamps.append(contentsOf: absoluteTimestamps)                // NEW
+>>>>>>> Stashed changes
             }
 
             let windowData = zip(zip(windowTokens, windowTimestamps), windowConfidences).map {
