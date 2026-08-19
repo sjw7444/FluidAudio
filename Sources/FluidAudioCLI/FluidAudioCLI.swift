@@ -102,6 +102,10 @@ struct FluidAudioCLI {
             await CohereTranscribeCommand.run(arguments: Array(arguments.dropFirst(2)))
         case "cohere-benchmark":
             await CohereBenchmark.run(arguments: Array(arguments.dropFirst(2)))
+        case "canary-transcribe":
+            await CanaryTranscribeCommand.run(arguments: Array(arguments.dropFirst(2)))
+        case "canary-earnings-benchmark":
+            await CanaryEarningsBenchmark.run(arguments: Array(arguments.dropFirst(2)))
         case "help", "--help", "-h":
             printUsage()
         default:
@@ -149,6 +153,8 @@ struct FluidAudioCLI {
                 ja-benchmark            Run Japanese ASR benchmark on JSUT/Common Voice
                 cohere-transcribe       Transcribe using Cohere Transcribe (cache-external pipeline, 14 languages)
                 cohere-benchmark        Run Cohere Transcribe FLEURS benchmark
+                canary-transcribe       Transcribe using Canary-1B-v2 (beta model conversion)
+                canary-earnings-benchmark  Run Canary-1B-v2 earnings custom-vocab benchmark (beta)
                 download                Download evaluation datasets
                 help                    Show this help message
 
