@@ -52,9 +52,12 @@ struct ChatterboxSynthesizer {
         textIds.append(ChatterboxConstants.stopTextToken)
         let condLen = models.voice.condEmb.rows
         let contextLen = condLen + textIds.count + 2  // two BOS embeds
+        // Report text tokens vs. what remains of the prefill window after
+        // the voice conditioning and BOS embeds (#924).
         guard contextLen <= ChatterboxConstants.prefillLength else {
             throw ChatterboxError.textTooLong(
-                tokens: contextLen, max: ChatterboxConstants.prefillLength)
+                tokens: textIds.count,
+                max: ChatterboxConstants.prefillLength - condLen - 2)
         }
 
         let prefillEmbeds = try buildPrefillEmbeds(textIds: textIds)
@@ -144,9 +147,12 @@ struct ChatterboxSynthesizer {
         }
         let promptLen = models.voice.promptTokens.count
         let totalTokens = promptLen + speechTokens.count
+        // Report generated tokens vs. what remains of the flow bucket after
+        // the voice's prompt tokens (#924).
         guard totalTokens <= ChatterboxConstants.flowTokenBucket else {
             throw ChatterboxError.generationTooLong(
-                tokens: totalTokens, max: ChatterboxConstants.flowTokenBucket)
+                tokens: speechTokens.count,
+                max: ChatterboxConstants.flowTokenBucket - promptLen)
         }
 
         // ---- S3Gen: flow (mel) + HiFT (waveform) ----
